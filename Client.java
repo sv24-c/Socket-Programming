@@ -1,6 +1,9 @@
-package Multiple_Clients_Chat;
+package One_to_Many;
 
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Scanner;
 
@@ -9,98 +12,43 @@ import java.util.Scanner;
  */
 public class Client {
 
-    private Socket socket;
-    private BufferedReader bufferedReader;
-    private BufferedWriter bufferedWriter;
-    private String username;
+    public static void main(String[] args) {
 
-    public Client(Socket socket, String username) throws IOException {
-        try
-        {
-            this.socket = socket;
-            this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-            this.bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            this.username = username;
-        }
-        catch (IOException e)
-        {
-            closeEverything(socket, bufferedReader, bufferedWriter);
-        }
-    }
-
-    public void sendMessage()
-    {
         try {
-            bufferedWriter.write(username);
-            bufferedWriter.newLine();
-            bufferedWriter.flush();
 
-            Scanner scanner = new Scanner(System.in);
+            Scanner sc = new Scanner(System.in);
 
-            while (socket.isConnected())
+            InetAddress ip = InetAddress.getByName("localhost");
+            Socket socket = new Socket(ip , 5000);
+
+            DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+            DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+
+            while (true)
             {
-                String messageToSend = scanner.nextLine();
-                bufferedWriter.write(username+": "+messageToSend);
-                bufferedWriter.newLine();
-                bufferedWriter.flush();
-            }
-        }
-        catch (IOException e)
-        {
-            closeEverything(socket, bufferedReader, bufferedWriter);
-        }
-    }
+                System.out.println(inputStream.readUTF());
+                String tosend = sc.nextLine();
+                outputStream.writeUTF(tosend);
 
-    public void listenForMessage()
-    {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-
-                String msgGroupChat;
-
-                while (socket.isConnected())
+                if (tosend.equals("Exit"))
                 {
-                    try
-                    {
-                        msgGroupChat = bufferedReader.readLine();
-                        System.out.println(msgGroupChat);
-                    } catch (IOException e) {
-                        closeEverything(socket, bufferedReader, bufferedWriter);
-                    }
+                    System.out.println("Closing this connection "+ socket);
+                    socket.close();
+                    System.out.println("Connection Closed");
+                    break;
                 }
+                String received = inputStream.readUTF();
+                System.out.println(received);
             }
-        }).start();
-    }
 
-    public void closeEverything(Socket socket, BufferedReader bufferedReader, BufferedWriter bufferedWriter)
-    {
-        try {
-            if (bufferedReader != null)
-            {
-                bufferedReader.close();
-            }
-            if (bufferedWriter != null)
-            {
-                bufferedWriter.close();
-            }
-            if (socket != null)
-            {
-                socket.close();
-            }
-        } catch (IOException e) {
+            sc.close();
+            inputStream.close();
+            outputStream.close();
+
+        }
+        catch (Exception e)
+        {
             e.printStackTrace();
         }
-    }
-
-    public static void main(String[] args) throws IOException {
-
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("Enter your username for the group chat: ");
-        String username = scanner.nextLine();
-        Socket socket = new Socket("localhost", 1234);
-        Client client = new Client(socket, username);
-        client.listenForMessage();
-        client.sendMessage();
     }
 }
