@@ -1,68 +1,56 @@
-package One_to_One_read_only;
+package Multiple_Clients_Chat;
 
-import java.net.*;
-import java.io.*;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+
 /**
  * Created by smit on 1/2/22.
  */
+public class Server {
 
-// A Java program for a Server
+    private ServerSocket serverSocket;
 
-public class Server
-{
-    //initialize socket and input stream
-    private Socket		 socket = null;
-    private ServerSocket server = null;
-    private DataInputStream in	 = null;
-
-    // constructor with port
-    public Server(int port)
+    public Server(ServerSocket serverSocket)
     {
-        // starts server and waits for a connection
-        try
-        {
-            server = new ServerSocket(port);
-            System.out.println("Server started");
+        this.serverSocket = serverSocket;
+    }
 
-            System.out.println("Waiting for a client ...");
-
-            socket = server.accept();
-            System.out.println("Client accepted");
-
-            // takes input from the client socket
-            in = new DataInputStream(
-                    new BufferedInputStream(socket.getInputStream()));
-
-            String line = "";
-
-            // reads message from client until "Over" is sent
-            while (!line.equals("Over"))
+    public void startServer()
+    {
+        try {
+            while (!serverSocket.isClosed())
             {
-                try
-                {
-                    line = in.readUTF();
-                    System.out.println(line);
+                Socket socket = serverSocket.accept();
+                System.out.println("A new Client is connected");
 
-                }
-                catch(IOException i)
-                {
-                    System.out.println(i);
-                }
+                ClientHandler clientHandler = new ClientHandler(socket);
+
+                Thread thread = new Thread(clientHandler);
+                thread.start();
+
             }
-            System.out.println("Closing connection");
-
-            // close connection
-            socket.close();
-            in.close();
-        }
-        catch(IOException i)
-        {
-            System.out.println(i);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
-    public static void main(String args[])
+    public void closeServerSocket()
     {
-        Server server = new Server(5000);
+        try {
+            if (serverSocket != null)
+            {
+                serverSocket.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+
+        ServerSocket serverSocket = new ServerSocket(1234);
+        Server server = new Server(serverSocket);
+        server.startServer();
     }
 }

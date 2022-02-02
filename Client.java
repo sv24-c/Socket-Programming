@@ -1,76 +1,106 @@
-package One_to_One_read_only;
-import java.net.*;
+package Multiple_Clients_Chat;
+
 import java.io.*;
+import java.net.Socket;
+import java.util.Scanner;
+
 /**
  * Created by smit on 1/2/22.
  */
+public class Client {
 
-// A Java program for a Client
+    private Socket socket;
+    private BufferedReader bufferedReader;
+    private BufferedWriter bufferedWriter;
+    private String username;
 
-
-public class Client
-{
-    // initialize socket and input output streams
-    private Socket socket		 = null;
-    private DataInputStream input = null;
-    private DataOutputStream out	 = null;
-
-    // constructor to put ip address and port
-    public Client(String address, int port)
-    {
-        // establish a connection
+    public Client(Socket socket, String username) throws IOException {
         try
         {
-            socket = new Socket(address, port);
-            System.out.println("Connected");
-
-            // takes input from terminal
-            input = new DataInputStream(System.in);
-
-            // sends output to the socket
-            out = new DataOutputStream(socket.getOutputStream());
+            this.socket = socket;
+            this.bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+            this.bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            this.username = username;
         }
-        catch(UnknownHostException u)
+        catch (IOException e)
         {
-            System.out.println(u);
-        }
-        catch(IOException i)
-        {
-            System.out.println(i);
-        }
-
-        // string to read message from input
-        String line = "";
-
-        // keep reading until "Over" is input
-        while (!line.equals("Over"))
-        {
-            try
-            {
-                line = input.readLine();
-                out.writeUTF(line);
-            }
-            catch(IOException i)
-            {
-                System.out.println(i);
-            }
-        }
-
-        // close the connection
-        try
-        {
-            input.close();
-            out.close();
-            socket.close();
-        }
-        catch(IOException i)
-        {
-            System.out.println(i);
+            closeEverything(socket, bufferedReader, bufferedWriter);
         }
     }
 
-    public static void main(String args[])
+    public void sendMessage()
     {
-        Client client = new Client("127.0.0.1", 5000);
+        try {
+            bufferedWriter.write(username);
+            bufferedWriter.newLine();
+            bufferedWriter.flush();
+
+            Scanner scanner = new Scanner(System.in);
+
+            while (socket.isConnected())
+            {
+                String messageToSend = scanner.nextLine();
+                bufferedWriter.write(username+": "+messageToSend);
+                bufferedWriter.newLine();
+                bufferedWriter.flush();
+            }
+        }
+        catch (IOException e)
+        {
+            closeEverything(socket, bufferedReader, bufferedWriter);
+        }
+    }
+
+    public void listenForMessage()
+    {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                String msgGroupChat;
+
+                while (socket.isConnected())
+                {
+                    try
+                    {
+                        msgGroupChat = bufferedReader.readLine();
+                        System.out.println(msgGroupChat);
+                    } catch (IOException e) {
+                        closeEverything(socket, bufferedReader, bufferedWriter);
+                    }
+                }
+            }
+        }).start();
+    }
+
+    public void closeEverything(Socket socket, BufferedReader bufferedReader, BufferedWriter bufferedWriter)
+    {
+        try {
+            if (bufferedReader != null)
+            {
+                bufferedReader.close();
+            }
+            if (bufferedWriter != null)
+            {
+                bufferedWriter.close();
+            }
+            if (socket != null)
+            {
+                socket.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Enter your username for the group chat: ");
+        String username = scanner.nextLine();
+        Socket socket = new Socket("localhost", 1234);
+        Client client = new Client(socket, username);
+        client.listenForMessage();
+        client.sendMessage();
     }
 }
